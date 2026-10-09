@@ -1,0 +1,44 @@
+# Runs on every pull request: fast checks that need no Databricks compute.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src tests scripts
+
+      - name: Sample data is reproducible
+        run: |
+          python scripts/generate_sample_data.py > /dev/null
+          git diff --exit-code -- sample_data || (echo "sample_data is out of date: run scripts/generate_sample_data.py and commit" && exit 1)
+
+      - name: Unit tests
+        run: pytest -q
+
+  validate-bundle:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Validate bundle for staging
+        run: databricks bundle validate -t staging

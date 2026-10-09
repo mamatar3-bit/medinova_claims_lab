@@ -1,0 +1,58 @@
+# Lakeflow Job: Unity Catalog setup -> land data -> Bronze -> Silver -> Gold -> Vector Search sync.
+# Runs on serverless compute (no cluster definitions needed).
+resources:
+  jobs:
+    medinova_data_pipeline:
+      name: medinova-claims-data-pipeline
+      description: Daily medallion pipeline for MediNova synthetic claims, plus Vector Search sync.
+      tags:
+        project: medinova_claims
+        layer: data
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: llm_endpoint
+          default: ${var.llm_endpoint}
+
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"      # every day at 06:00
+        timezone_id: America/New_York
+        pause_status: PAUSED                        # unpause in the UI or per target when ready
+
+      max_concurrent_runs: 1
+      email_notifications:
+        on_failure: []                              # add your email to get failure alerts
+
+      tasks:
+        - task_key: uc_setup
+          notebook_task:
+            notebook_path: ../notebooks/01_unity_catalog_setup.py
+
+        - task_key: land_sample_data
+          depends_on: [{task_key: uc_setup}]
+          notebook_task:
+            notebook_path: ../notebooks/02_land_sample_data.py
+
+        - task_key: bronze_ingest
+          depends_on: [{task_key: land_sample_data}]
+          notebook_task:
+            notebook_path: ../notebooks/03_bronze_ingest.py
+
+        - task_key: silver_transform
+          depends_on: [{task_key: bronze_ingest}]
+          notebook_task:
+            notebook_path: ../notebooks/04_silver_transform.py
+
+        - task_key: gold_and_governance
+          depends_on: [{task_key: silver_transform}]
+          notebook_task:
+            notebook_path: ../notebooks/05_gold_and_governance.py
+
+        - task_key: vector_search_sync
+          depends_on: [{task_key: silver_transform}]   # runs in parallel with Gold
+          max_retries: 1
+          notebook_task:
+            notebook_path: ../notebooks/06_vector_search_index.py

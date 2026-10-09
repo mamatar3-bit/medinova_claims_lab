@@ -1,0 +1,31 @@
+# Runs when a GitHub release is published (for example v1.0.0).
+# The `production` environment should have "Required reviewers" turned on in
+# GitHub > Settings > Environments, so a human approves before anything changes in prod.
+name: Deploy to production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+
+      - name: Deploy bundle
+        run: databricks bundle deploy -t prod
+
+      - name: Build, evaluate (quality gate) and deploy agent
+        run: databricks bundle run -t prod medinova_agent_release

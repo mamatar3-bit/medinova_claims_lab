@@ -1,0 +1,54 @@
+# Databricks Asset Bundle — everything needed to deploy the lab as code.
+#   databricks bundle validate -t dev
+#   databricks bundle deploy   -t dev
+#   databricks bundle run      -t dev medinova_data_pipeline
+#   databricks bundle run      -t dev medinova_agent_release
+bundle:
+  name: medinova_claims_lab
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog to write to
+    default: workspace
+  schema:
+    description: Schema for this environment's tables, functions, index and model
+    default: medinova_claims_dev
+  llm_endpoint:
+    description: Foundation Model API chat endpoint used by the agent and ai_query()
+    default: databricks-claude-sonnet-4-5
+
+targets:
+  # Your personal sandbox. `mode: development` prefixes job names with [dev <you>]
+  # and pauses schedules, so you can't clash with teammates.
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://<your-workspace>.cloud.databricks.com   # <-- change me
+    variables:
+      schema: medinova_claims_dev
+
+  # Deployed by GitHub Actions on every merge to main.
+  staging:
+    mode: production
+    workspace:
+      host: https://<your-workspace>.cloud.databricks.com   # <-- change me (often a separate workspace)
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      schema: medinova_claims_staging
+    # run_as:
+    #   service_principal_name: <application-id-of-your-ci-service-principal>
+
+  # Deployed by GitHub Actions when a release is published, after manual approval.
+  prod:
+    mode: production
+    workspace:
+      host: https://<your-workspace>.cloud.databricks.com   # <-- change me
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      schema: medinova_claims
+    # run_as:
+    #   service_principal_name: <application-id-of-your-prod-service-principal>

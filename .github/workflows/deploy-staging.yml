@@ -1,0 +1,44 @@
+# Runs when a pull request is merged to main:
+# deploy the bundle to staging, refresh the data, then build -> evaluate -> deploy the agent.
+# If the evaluation quality gate fails, the run fails and nothing is promoted.
+name: Deploy to staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Unit tests
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -q
+
+      - uses: databricks/setup-cli@main
+
+      - name: Deploy bundle
+        run: databricks bundle deploy -t staging
+
+      - name: Run data pipeline (Bronze -> Silver -> Gold -> Vector Search)
+        run: databricks bundle run -t staging medinova_data_pipeline
+
+      - name: Build, evaluate (quality gate) and deploy agent
+        run: databricks bundle run -t staging medinova_agent_release

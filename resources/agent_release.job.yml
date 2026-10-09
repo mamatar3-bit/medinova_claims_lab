@@ -1,0 +1,41 @@
+# Lakeflow Job: register tools -> build & register agent (@challenger)
+#   -> evaluate (quality gate, promotes to @champion) -> deploy @champion to Model Serving.
+# If evaluation fails, the deploy task never runs.
+resources:
+  jobs:
+    medinova_agent_release:
+      name: medinova-claims-agent-release
+      description: Build, evaluate and deploy the MediNova claims-support agent.
+      tags:
+        project: medinova_claims
+        layer: ai
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: llm_endpoint
+          default: ${var.llm_endpoint}
+
+      max_concurrent_runs: 1
+
+      tasks:
+        - task_key: agent_tools
+          notebook_task:
+            notebook_path: ../notebooks/07_agent_tools.py
+
+        - task_key: build_agent
+          depends_on: [{task_key: agent_tools}]
+          notebook_task:
+            notebook_path: ../notebooks/08_build_agent.py
+
+        - task_key: evaluate_agent
+          depends_on: [{task_key: build_agent}]
+          notebook_task:
+            notebook_path: ../notebooks/09_evaluate_agent.py
+
+        - task_key: deploy_agent
+          depends_on: [{task_key: evaluate_agent}]
+          notebook_task:
+            notebook_path: ../notebooks/10_deploy_and_monitor.py
