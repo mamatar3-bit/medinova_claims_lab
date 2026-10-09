@@ -1,0 +1,41 @@
+provider_npi,provider_name,specialty,network_status,city,state
+9978161301,Walsh Family Care Center,Family Medicine,In-network,Baltimore,MD
+9973855860,Johnson Internal Medical Group,Internal Medicine,Out-of-network,Arlington,VA
+9950721828,Johnson Emergency Care Center,Emergency Medicine,In-network,Durham,NC
+9995154811,Garcia Radiology Health Partners,Radiology,Out-of-network,Norfolk,VA
+9997767996,Fischer Orthopedic Care Center,Orthopedic Surgery,Out-of-network,Richmond,VA
+9912013364,Rossi Physical Care Center,Physical Therapy,In-network,Durham,NC
+9942473041,Chen Psychiatry Health Partners,Psychiatry,In-network,Arlington,VA
+9969127085,Walsh Gastroenterology Health Partners,Gastroenterology,In-network,Arlington,VA
+9949480355,Moreau Neurology Medical Group,Neurology,In-network,Arlington,VA
+9997885988,Kim Laboratory Health Partners,Laboratory,In-network,Baltimore,MD
+9921167381,Garcia Family Specialists,Family Medicine,Out-of-network,Raleigh,NC
+9978838211,Tanaka Internal Clinic,Internal Medicine,In-network,Durham,NC
+9924485705,Patel Emergency Health Partners,Emergency Medicine,In-network,Raleigh,NC
+9912267000,Brennan Radiology Health Partners,Radiology,In-network,Baltimore,MD
+9917022619,Kowalski Orthopedic Health Partners,Orthopedic Surgery,In-network,Durham,NC
+9919803040,Osei Physical Specialists,Physical Therapy,In-network,Baltimore,MD
+9955216991,Walsh Psychiatry Medical Group,Psychiatry,In-network,Arlington,VA
+9965036102,Tanaka Gastroenterology Clinic,Gastroenterology,In-network,Richmond,VA
+9911470357,Haddad Neurology Medical Group,Neurology,In-network,Richmond,VA
+9985067323,Ahmed Laboratory Specialists,Laboratory,In-network,Richmond,VA
+9927578104,Moreau Family Specialists,Family Medicine,In-network,Norfolk,VA
+9938570347,Okafor Internal Specialists,Internal Medicine,In-network,Baltimore,MD
+9912634789,Novak Emergency Clinic,Emergency Medicine,In-network,Richmond,VA
+9990801554,Fischer Radiology Medical Group,Radiology,Out-of-network,Norfolk,VA
+9929643919,Okafor Orthopedic Care Center,Orthopedic Surgery,In-network,Durham,NC
+9991917530,Silva Physical Specialists,Physical Therapy,In-network,Norfolk,VA
+9922095322,Fischer Psychiatry Clinic,Psychiatry,In-network,Raleigh,NC
+9990702951,Rossi Gastroenterology Care Center,Gastroenterology,In-network,Norfolk,VA
+9988822215,Edwards Neurology Clinic,Neurology,In-network,Raleigh,NC
+9934538720,Nguyen Laboratory Care Center,Laboratory,Out-of-network,Baltimore,MD
+9991932517,Brennan Family Medical Group,Family Medicine,Out-of-network,Durham,NC
+9984347386,Johnson Internal Medical Group,Internal Medicine,In-network,Norfolk,VA
+9966567031,Ahmed Emergency Specialists,Emergency Medicine,In-network,Norfolk,VA
+9944249499,Okafor Radiology Health Partners,Radiology,In-network,Richmond,VA
+9990056352,Silva Orthopedic Specialists,Orthopedic Surgery,In-network,Norfolk,VA
+9919230975,Moreau Physical Clinic,Physical Therapy,In-network,Baltimore,MD
+9992660746,Ahmed Psychiatry Medical Group,Psychiatry,In-network,Norfolk,VA
+9937377581,Silva Gastroenterology Health Partners,Gastroenterology,In-network,Arlington,VA
+9969821582,Patel Neurology Health Partners,Neurology,In-network,Durham,NC
+9959497534,Chen Laboratory Health Partners,Laboratory,In-network,Norfolk,VA

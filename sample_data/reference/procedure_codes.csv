@@ -1,0 +1,15 @@
+procedure_code,description,category,typical_billed_amount,requires_prior_auth
+99213,"Office visit, established patient, low complexity",Office visit,160,false
+99214,"Office visit, established patient, moderate complexity",Office visit,240,false
+99203,"Office visit, new patient",Office visit,210,false
+99283,"Emergency department visit, moderate severity",Emergency,1150,false
+85025,Complete blood count lab test,Lab,45,false
+80053,Comprehensive metabolic panel lab test,Lab,60,false
+71046,"Chest X-ray, 2 views",Imaging,180,false
+70553,MRI brain with and without contrast,Advanced imaging,2600,true
+72148,MRI lumbar spine without contrast,Advanced imaging,1900,true
+74177,CT abdomen and pelvis with contrast,Advanced imaging,1700,true
+29881,Knee arthroscopy with meniscectomy,Outpatient surgery,7800,true
+97110,"Physical therapy, therapeutic exercise (15 min)",Therapy,95,false
+90834,"Psychotherapy session, 45 minutes",Behavioral health,150,false
+J1745,Infliximab infusion (specialty drug),Specialty drug,5200,true

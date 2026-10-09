@@ -1,0 +1,4 @@
+plan_id,plan_name,network_type,deductible,out_of_pocket_max,coinsurance_pct,pcp_copay,specialist_copay,er_copay
+GOLD_PPO,MediNova Gold PPO,PPO,500,3000,10,20,40,250
+SILVER_HMO,MediNova Silver HMO,HMO,1500,6000,20,35,60,400
+BRONZE_HDHP,MediNova Bronze HDHP,PPO,4000,8000,30,0,0,0

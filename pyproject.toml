@@ -1,0 +1,16 @@
+[project]
+name = "medinova"
+version = "0.1.0"
+description = "Helpers for the MediNova claims Databricks lab"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["notebooks"]   # Databricks notebooks use globals like spark/dbutils/display
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]   # pycodestyle errors, pyflakes, import sorting
+ignore = ["E501"]           # long text lines in the sample policy documents are fine

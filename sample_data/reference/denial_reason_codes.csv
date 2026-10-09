@@ -1,0 +1,9 @@
+denial_reason_code,description,next_step,usually_resolved_by
+DN01,Prior authorization required but not obtained,Ask the provider to request retro-authorization or file an appeal with medical records.,Provider
+DN02,Out-of-network provider not covered by plan,HMO plans cover out-of-network care only for emergencies. Member may appeal if no in-network provider was available.,Member
+DN03,Timely filing limit exceeded,Claim was received after the filing deadline. Provider may appeal only with proof of timely submission.,Provider
+DN04,Duplicate claim,Same service was already processed. No action needed unless the service was performed twice.,Provider
+DN05,Service not covered under plan,Service is excluded in the plan's benefits summary. Member may appeal with a letter of medical necessity.,Member
+DN06,Additional information or medical records needed,Provider must send the requested records within 45 days or the claim stays denied.,Provider
+DN07,Member not eligible on date of service,Coverage was not active. Verify eligibility dates and resubmit if coverage was active.,Member
+DN08,Specialist referral required (HMO),HMO members need a PCP referral before seeing a specialist. Provider can submit the referral and resubmit.,Provider
