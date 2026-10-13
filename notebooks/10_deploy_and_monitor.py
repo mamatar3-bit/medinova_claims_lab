@@ -42,8 +42,12 @@ w = WorkspaceClient()
 
 for _ in range(60):                                   # deployments can take ~15 minutes
     ep = w.serving_endpoints.get(ENDPOINT)
-    if str(ep.state.ready).endswith("READY") and "NOT_UPDATING" in str(ep.state.config_update):
+    ready = getattr(ep.state.ready, "value", str(ep.state.ready))          # "READY" or "NOT_READY"
+    updating = getattr(ep.state.config_update, "value", str(ep.state.config_update))
+    if ready == "READY" and updating == "NOT_UPDATING":
         break
+    if updating == "UPDATE_FAILED":
+        raise Exception(f"Deployment failed: open Serving > {ENDPOINT} > Events to see why")
     print("  endpoint:", ep.state.ready, ep.state.config_update)
     time.sleep(30)
 print("Endpoint ready:", ENDPOINT)
@@ -69,9 +73,9 @@ print([o for o in resp["output"] if o.get("type") == "message"][-1]["content"][0
 
 # COMMAND ----------
 
-from databricks.sdk.service.serving import (AiGatewayRateLimit, AiGatewayRateLimitKey,
-                                            AiGatewayRateLimitRenewalPeriod, AiGatewayUsageTrackingConfig)
 try:
+    from databricks.sdk.service.serving import (AiGatewayRateLimit, AiGatewayRateLimitKey,
+                                                AiGatewayRateLimitRenewalPeriod, AiGatewayUsageTrackingConfig)
     current = w.serving_endpoints.get(ENDPOINT).ai_gateway
     w.serving_endpoints.put_ai_gateway(
         name=ENDPOINT,
