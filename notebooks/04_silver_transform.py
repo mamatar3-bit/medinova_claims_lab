@@ -109,6 +109,16 @@ display(spark.sql(f"SELECT claim_status, count(*) n FROM {SILVER_CLAIMS} GROUP B
 
 # COMMAND ----------
 
+# Notebook 05 puts column masks on this table. Remove them before rebuilding it so the
+# rebuild never fails on a re-run; notebook 05 (the next job task) puts them back.
+# In production you would MERGE into the masked table as a privileged service principal instead.
+if spark.catalog.tableExists(SILVER_MEMBERS):
+    for col in ["first_name", "last_name", "date_of_birth", "email", "phone"]:
+        try:
+            spark.sql(f"ALTER TABLE {SILVER_MEMBERS} ALTER COLUMN {col} DROP MASK")
+        except Exception:
+            pass
+
 spark.sql(f"""
 CREATE OR REPLACE TABLE {SILVER_MEMBERS}
 COMMENT 'Members with typed eligibility dates. Contains PHI (name, DOB, email, phone).'
