@@ -15,7 +15,6 @@ print(google.protobuf.__version__)
 # COMMAND ----------
 
 # MAGIC %pip install -q "mlflow[databricks]>=3.1.3" databricks-langchain "unitycatalog-langchain[databricks]" databricks-agents langgraph "protobuf==6.33.5" "databricks-sdk==0.122.0" "databricks-connect==19.1.*"
-# MAGIC %pip install -q --no-deps databricks-vectorsearch databricks-ai-search deprecation
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -118,7 +117,7 @@ with mlflow.start_run(run_name="claims_agent"):
         resources=resources,
         input_example=input_example,
         pip_requirements=["mlflow[databricks]>=3.1.3", "databricks-langchain", "unitycatalog-langchain[databricks]",
-                          "langgraph", "databricks-vectorsearch", "pydantic>=2"],
+                          "langgraph", "pydantic>=2"],
     )
 print("Logged:", logged.model_uri)
 
