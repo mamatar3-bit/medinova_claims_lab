@@ -18,7 +18,7 @@ variables:
     default: medinova_claims_dev
   llm_endpoint:
     description: Foundation Model API chat endpoint used by the agent and ai_query()
-    default: databricks-claude-sonnet-4-5
+    default: databricks-gpt-oss-120b
 
 targets:
   # Your personal sandbox. `mode: development` prefixes job names with [dev <you>]
