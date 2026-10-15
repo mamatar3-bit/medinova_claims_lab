@@ -12,7 +12,7 @@
 
 dbutils.widgets.text("catalog", "workspace", "Catalog")
 dbutils.widgets.text("schema", "medinova_claims", "Schema")
-dbutils.widgets.text("llm_endpoint", "databricks-claude-sonnet-4-5", "LLM endpoint")
+dbutils.widgets.text("llm_endpoint", "databricks-gpt-oss-120b", "LLM endpoint")
 
 CATALOG = dbutils.widgets.get("catalog")
 SCHEMA = dbutils.widgets.get("schema")
