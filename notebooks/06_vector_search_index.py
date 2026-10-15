@@ -13,7 +13,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -q --no-deps databricks-vectorsearch deprecation
+# MAGIC %pip install -q --no-deps databricks-vectorsearch databricks-ai-search deprecation
 # MAGIC %restart_python
 
 # COMMAND ----------
