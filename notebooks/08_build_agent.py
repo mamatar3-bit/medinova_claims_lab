@@ -9,8 +9,10 @@
 # MAGIC with alias `challenger` (notebook 09 promotes it to `champion` only if evaluation passes).
 
 # COMMAND ----------
-# MAGIC import google.protobuf
+import google.protobuf
 print(google.protobuf.__version__)
+
+# COMMAND ----------
 
 # MAGIC %pip install -q "mlflow[databricks]>=3.1.3" databricks-langchain "unitycatalog-langchain[databricks]" databricks-agents langgraph "protobuf==6.33.5" "databricks-sdk==0.122.0" "databricks-connect==19.1.*"
 # MAGIC %pip install -q --no-deps databricks-vectorsearch databricks-ai-search deprecation
