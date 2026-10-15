@@ -10,7 +10,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -q -U "mlflow[databricks]>=3.1.3" databricks-langchain "unitycatalog-langchain[databricks]" databricks-agents langgraph databricks-vectorsearch
+# MAGIC %pip install -q "mlflow[databricks]>=3.1.3" databricks-langchain "unitycatalog-langchain[databricks]" databricks-agents langgraph databricks-vectorsearch "protobuf==6.33.5" "databricks-sdk==0.122.0" "databricks-connect==19.1.*"
 # MAGIC %restart_python
 
 # COMMAND ----------
