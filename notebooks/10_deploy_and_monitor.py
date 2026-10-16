@@ -115,18 +115,24 @@ except Exception as e:
         wait_deleted(ENDPOINT)
     except NotFound:
         pass
+    served = [ServedEntityInput(
+        entity_name=UC_MODEL_NAME,
+        entity_version=str(version),
+        workload_size="Small",
+        scale_to_zero_enabled=True,
+        environment_vars={
+            "ENABLE_MLFLOW_TRACING": "true",
+            "MLFLOW_EXPERIMENT_ID": exp.experiment_id,
+        },
+    )]
+    # Some databricks-sdk versions require `name` inside the config, others don't accept it
+    try:
+        config = EndpointCoreConfigInput(name=ENDPOINT, served_entities=served)
+    except TypeError:
+        config = EndpointCoreConfigInput(served_entities=served)
     w.serving_endpoints.create(
         name=ENDPOINT,
-        config=EndpointCoreConfigInput(served_entities=[ServedEntityInput(
-            entity_name=UC_MODEL_NAME,
-            entity_version=str(version),
-            workload_size="Small",
-            scale_to_zero_enabled=True,
-            environment_vars={
-                "ENABLE_MLFLOW_TRACING": "true",
-                "MLFLOW_EXPERIMENT_ID": exp.experiment_id,
-            },
-        )]),
+        config=config,
         tags=[EndpointTag(key="project", value="medinova_claims")],
     )
 
