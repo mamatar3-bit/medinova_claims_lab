@@ -185,31 +185,39 @@ failed = {n: s for n, s in report.items() if s is not None and s < THRESHOLDS[n]
 
 # COMMAND ----------
 
-def _eval_table():
-    if hasattr(results, "result_df") and results.result_df is not None:
-        return results.result_df
-    tables = getattr(results, "tables", {}) or {}
-    return tables.get("eval_results")
+# Read each judge verdict straight from the evaluation traces (works across MLflow versions)
+def _get(obj, *names):
+    for n in names:
+        if isinstance(obj, dict) and n in obj:
+            return obj[n]
+        if hasattr(obj, n):
+            return getattr(obj, n)
+    return None
 
-df = _eval_table()
-if failed and df is not None:
+def _value(a):
+    fb = _get(a, "feedback")
+    v = _get(fb, "value") if fb is not None else None
+    return v if v is not None else _get(a, "value")
+
+FAIL_VALUES = {"no", "false", "0", "0.0"}
+
+if failed:
+    traces = mlflow.search_traces(run_id=results.run_id)
     for name in failed:
-        cols = [c for c in df.columns if name in c]
-        value_col = next((c for c in cols if "value" in c), None)
-        rationale_col = next((c for c in cols if "rationale" in c), None)
-        if value_col is None:
-            print(f"[{name}] no per-row column found; columns: {cols}")
-            continue
-        bad = df[df[value_col].astype(str).str.lower().isin(["no", "false", "0", "0.0"])]
-        print(f"===== {name}: {len(bad)} failing row(s) =====")
-        for _, row in bad.iterrows():
-            print("QUESTION :", row.get("request", row.get("inputs")))
-            print("ANSWER   :", row.get("response", row.get("outputs")))
-            if rationale_col:
-                print("JUDGE WHY:", row[rationale_col])
-            print("-" * 80)
-elif failed:
-    print("Per-row results not available here; open the evaluation run in the MLflow experiment.")
+        count = 0
+        print(f"===== {name}: failing answers =====")
+        for _, row in traces.iterrows():
+            for a in (row.get("assessments") or []):
+                if _get(a, "name", "assessment_name") != name:
+                    continue
+                val = _value(a)
+                if str(val).lower() in FAIL_VALUES:
+                    count += 1
+                    print("QUESTION :", row.get("request"))
+                    print("ANSWER   :", row.get("response"))
+                    print("JUDGE WHY:", _get(a, "rationale"))
+                    print("-" * 80)
+        print(f"{count} failing answer(s) for {name}\n")
 else:
     print("No failing scorers.")
 
