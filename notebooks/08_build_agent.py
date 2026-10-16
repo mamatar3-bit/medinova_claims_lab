@@ -5,12 +5,15 @@
 # MAGIC Keeping it in a plain `.py` file is the *models-from-code* pattern: the exact file you test
 # MAGIC is the file MLflow logs and Model Serving runs, and Git can diff it in pull requests.
 # MAGIC
-# MAGIC Steps: write config → try the agent → read a trace → log with resources → register in UC
+# MAGIC Steps: write config → try the agent → read a trace → log with resources → validate → register in UC
 # MAGIC with alias `challenger` (notebook 09 promotes it to `champion` only if evaluation passes).
+# MAGIC
+# MAGIC **Always run this notebook top to bottom.** `%restart_python` clears every variable, so
+# MAGIC `%run ./00_config` must run again after it.
 
 # COMMAND ----------
 
-# MAGIC %pip install -q "mlflow[databricks]>=3.1.3" databricks-langchain "unitycatalog-langchain[databricks]" databricks-agents langgraph "protobuf==6.33.5" "databricks-sdk==0.122.0" "databricks-connect==19.1.*"
+# MAGIC %pip install -q -U "mlflow[databricks]>=3.1.3" databricks-langchain databricks-vectorsearch "unitycatalog-langchain[databricks]" unitycatalog-ai databricks-agents langgraph langgraph-prebuilt langchain-core "pydantic>=2" "protobuf==6.33.5" "databricks-sdk==0.122.0" "databricks-connect==19.1.*"
 
 # COMMAND ----------
 
@@ -19,14 +22,31 @@
 # COMMAND ----------
 
 # Check the environment is healthy before going on
+import importlib.metadata as md
 import google.protobuf, mlflow, databricks_langchain, langgraph
-print("protobuf", google.protobuf.__version__, "| mlflow", mlflow.__version__)
-spark.sql("SELECT 1 AS ok").show()
 
+for pkg in ["mlflow", "langgraph", "langgraph-prebuilt", "langchain-core",
+            "databricks-langchain", "databricks-vectorsearch", "unitycatalog-langchain", "protobuf"]:
+    try:
+        print(f"{pkg:28s} {md.version(pkg)}")
+    except md.PackageNotFoundError:
+        print(f"{pkg:28s} NOT INSTALLED")
+spark.sql("SELECT 1 AS ok").show()
 
 # COMMAND ----------
 
 # MAGIC %run ./00_config
+
+# COMMAND ----------
+
+# Fail fast if 00_config did not define everything this notebook needs
+REQUIRED = ["LLM_ENDPOINT", "EMBEDDING_ENDPOINT", "VS_INDEX", "CLAIM_TOOL", "BENEFITS_TOOL",
+            "GOLD_CLAIM_DETAIL", "GOLD_ACCUMULATORS", "EXPERIMENT_NAME", "UC_MODEL_NAME",
+            "CATALOG", "SCHEMA"]
+missing = [name for name in REQUIRED if name not in globals()]
+assert not missing, f"Missing from 00_config: {missing}. Re-run the %run ./00_config cell."
+for name in REQUIRED:
+    print(f"{name:20s} = {globals()[name]}")
 
 # COMMAND ----------
 
@@ -74,9 +94,19 @@ mlflow.set_experiment(EXPERIMENT_NAME)
 from agent import AGENT
 
 def ask(question: str) -> str:
+    """Return only the final answer text, skipping reasoning blocks from reasoning models."""
     resp = AGENT.predict({"input": [{"role": "user", "content": question}]}).model_dump()
     messages = [o for o in resp["output"] if o.get("type") == "message"]
-    return messages[-1]["content"][0]["text"] if messages else str(resp["output"])
+    if not messages:
+        return str(resp["output"])
+    content = messages[-1]["content"]
+    if isinstance(content, str):
+        return content
+    text = "\n".join(
+        c.get("text", "") for c in content
+        if isinstance(c, dict) and c.get("type") in ("output_text", "text")
+    )
+    return text or str(content)
 
 for q in [
     "Why was claim CLM-100042 denied and what can the member do now?",
@@ -98,9 +128,14 @@ for q in [
 # MAGIC %md ## 3. Log the agent with its resources
 # MAGIC `resources` tells Databricks which endpoints, index, functions and tables the agent touches,
 # MAGIC so the serving endpoint gets **automatic, short-lived credentials** for exactly those.
+# MAGIC
+# MAGIC `pip_requirements` is pinned to the exact versions installed in this notebook, so the
+# MAGIC serving environment matches the one you just tested (unpinned packages caused the
+# MAGIC `ExecutionInfo` import error).
 
 # COMMAND ----------
 
+import re, sys
 from mlflow.models.resources import (DatabricksFunction, DatabricksServingEndpoint,
                                      DatabricksTable, DatabricksVectorSearchIndex)
 
@@ -114,6 +149,28 @@ resources = [
     DatabricksTable(table_name=GOLD_ACCUMULATORS),
 ]
 
+# --- Pinned requirements: a fixed base list + every third-party package agent.py imports ---
+BASE_PACKAGES = {"mlflow", "databricks-langchain", "databricks-vectorsearch",
+                 "unitycatalog-ai", "unitycatalog-langchain", "langgraph",
+                 "langgraph-prebuilt", "langchain-core", "pydantic"}
+EXTRAS = {"mlflow": "[databricks]", "unitycatalog-langchain": "[databricks]"}
+EXCLUDE = {"databricks-connect", "pyspark"}   # notebook-only, never install in serving
+
+src = open("agent.py").read()
+imported = set(re.findall(r"^\s*(?:from|import)\s+(\w+)", src, re.M)) - set(sys.stdlib_module_names)
+module_to_pkg = md.packages_distributions()
+detected = {dist for mod in imported for dist in module_to_pkg.get(mod, [])}
+
+pip_requirements = []
+for pkg in sorted((BASE_PACKAGES | detected) - EXCLUDE, key=str.lower):
+    try:
+        pip_requirements.append(f"{pkg}{EXTRAS.get(pkg, '')}=={md.version(pkg)}")
+    except md.PackageNotFoundError:
+        print(f"WARNING: {pkg} is not installed in this notebook; skipping")
+print("pip_requirements:")
+for r in pip_requirements:
+    print("  ", r)
+
 input_example = {"input": [{"role": "user", "content": "What is the status of claim CLM-100042?"}]}
 
 with mlflow.start_run(run_name="claims_agent"):
@@ -123,17 +180,34 @@ with mlflow.start_run(run_name="claims_agent"):
         model_config="agent_config.yaml",
         resources=resources,
         input_example=input_example,
-        pip_requirements=["mlflow[databricks]>=3.1.3", "databricks-langchain", "unitycatalog-langchain[databricks]",
-                          "langgraph", "pydantic>=2"],
+        pip_requirements=pip_requirements,
     )
 print("Logged:", logged.model_uri)
 
 # COMMAND ----------
 
 # MAGIC %md ## 4. Validate the packaged model, then register it in Unity Catalog
+# MAGIC First load it in this notebook (fast, readable errors), then in a clean `uv` environment
+# MAGIC (the same thing Model Serving does).
 
 # COMMAND ----------
 
+import traceback
+
+# 4a. Load the logged model in this notebook's environment
+try:
+    loaded = mlflow.pyfunc.load_model(logged.model_uri)
+    print(loaded.predict(input_example))
+    print("\nOK: logged model loads and predicts in the notebook environment")
+except Exception:
+    traceback.print_exc()
+    raise
+
+# COMMAND ----------
+
+# 4b. Load it in a clean environment built only from pip_requirements.
+# If this fails, scroll INSIDE the output panel to its last line; it is usually
+# "ModuleNotFoundError: No module named 'x'" -> add that package to BASE_PACKAGES in step 3.
 mlflow.models.predict(model_uri=logged.model_uri, input_data=input_example, env_manager="uv")
 
 # COMMAND ----------
