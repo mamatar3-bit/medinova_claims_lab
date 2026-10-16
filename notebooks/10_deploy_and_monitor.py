@@ -10,8 +10,9 @@
 # MAGIC Model Serving is the deployment path the certification exam covers. Databricks now also offers
 # MAGIC Agent Runtime on Databricks Apps (Agent Bricks CLI) — see the stretch goals in the lab guide.
 # MAGIC
-# MAGIC **Run top to bottom.** This workspace requires scale-to-zero on every served model, so the
-# MAGIC deploy cell first removes any old endpoint for this model that was created without it.
+# MAGIC **Run top to bottom.** This workspace requires scale-to-zero on every served model. The deploy
+# MAGIC cell removes old endpoints for this model that were created without it, and if
+# MAGIC `agents.deploy()` still fails on scale-to-zero, it creates the endpoint directly.
 
 # COMMAND ----------
 
@@ -43,52 +44,94 @@ from mlflow import MlflowClient
 from databricks import agents
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.errors import NotFound
+from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntityInput, EndpointTag
 
 mlflow.set_registry_uri("databricks-uc")
-mlflow.set_experiment(EXPERIMENT_NAME)          # deployed traces land in this experiment
+exp = mlflow.set_experiment(EXPERIMENT_NAME)          # deployed traces land in this experiment
 
 w = WorkspaceClient()
 version = MlflowClient().get_model_version_by_alias(UC_MODEL_NAME, "champion").version
+model_short = UC_MODEL_NAME.split(".")[-1]
 
 def _state(x):
     return getattr(x, "value", str(x))
 
-# 1. Remove old endpoints for this model that have a served model WITHOUT scale-to-zero.
-#    agents.deploy() updates an existing endpoint instead of replacing it, so one old served
-#    model without scale-to-zero makes every new deploy fail with "Scale to zero must be enabled".
-try:
-    existing = {d.endpoint_name for d in agents.get_deployments(UC_MODEL_NAME)}
-except Exception:
-    existing = set()
-
-for name in existing:
-    try:
-        ep = w.serving_endpoints.get(name)
-    except NotFound:
-        continue
-    entities = []
+def serves_this_model(ep) -> bool:
+    """True if the endpoint is named after this model or serves it."""
+    if model_short in ep.name:
+        return True
     for cfg in (ep.config, ep.pending_config):
-        if cfg is not None and cfg.served_entities:
-            entities += cfg.served_entities
-    if all(getattr(e, "scale_to_zero_enabled", False) for e in entities):
-        print(f"Keeping endpoint {name} (all served models scale to zero)")
-        continue
-    print(f"Deleting endpoint {name}: it has a served model without scale-to-zero ...")
-    w.serving_endpoints.delete(name)
+        for e in (getattr(cfg, "served_entities", None) or []):
+            if getattr(e, "entity_name", None) == UC_MODEL_NAME:
+                return True
+    return False
+
+def wait_deleted(name: str):
     for _ in range(60):
         try:
             w.serving_endpoints.get(name)
             time.sleep(10)
         except NotFound:
-            print(f"Deleted {name}")
-            break
+            print(f"  deleted {name}")
+            return
 
-# 2. Deploy with scale-to-zero on
-deployment = agents.deploy(UC_MODEL_NAME, version, scale_to_zero_enabled=True,
-                           tags={"project": "medinova_claims"})
-ENDPOINT = deployment.endpoint_name
+# 1. Find every endpoint for this model (by name or served entity) and delete any that has a
+#    served model without scale-to-zero. agents.deploy() updates an existing endpoint rather than
+#    replacing it, so one such served model makes every new deploy fail.
+for summary in w.serving_endpoints.list():
+    try:
+        ep = w.serving_endpoints.get(summary.name)
+    except NotFound:
+        continue
+    if not serves_this_model(ep):
+        continue
+    entities = []
+    for cfg in (ep.config, ep.pending_config):
+        entities += (getattr(cfg, "served_entities", None) or [])
+    print(f"Found endpoint {ep.name}: " +
+          (", ".join(f"{e.name} scale_to_zero={e.scale_to_zero_enabled}" for e in entities) or "no served models"))
+    if entities and all(e.scale_to_zero_enabled for e in entities):
+        continue
+    print(f"Deleting {ep.name} (has a served model without scale-to-zero)")
+    w.serving_endpoints.delete(ep.name)
+    wait_deleted(ep.name)
+
+# 2. Deploy. Prefer agents.deploy (adds the Review App); fall back to creating the endpoint
+#    directly with scale-to-zero forced on if agents.deploy still hits the scale-to-zero rule.
+REVIEW_APP = None
+try:
+    deployment = agents.deploy(UC_MODEL_NAME, version, scale_to_zero_enabled=True,
+                               tags={"project": "medinova_claims"})
+    ENDPOINT = deployment.endpoint_name
+    REVIEW_APP = getattr(deployment, "review_app_url", None)
+except Exception as e:
+    if "Scale to zero" not in str(e):
+        raise
+    print("agents.deploy did not apply scale-to-zero; creating the endpoint directly instead.")
+    ENDPOINT = f"agents_{UC_MODEL_NAME.replace('.', '-')}"[:63]
+    try:
+        w.serving_endpoints.get(ENDPOINT)
+        w.serving_endpoints.delete(ENDPOINT)
+        wait_deleted(ENDPOINT)
+    except NotFound:
+        pass
+    w.serving_endpoints.create(
+        name=ENDPOINT,
+        config=EndpointCoreConfigInput(served_entities=[ServedEntityInput(
+            entity_name=UC_MODEL_NAME,
+            entity_version=str(version),
+            workload_size="Small",
+            scale_to_zero_enabled=True,
+            environment_vars={
+                "ENABLE_MLFLOW_TRACING": "true",
+                "MLFLOW_EXPERIMENT_ID": exp.experiment_id,
+            },
+        )]),
+        tags=[EndpointTag(key="project", value="medinova_claims")],
+    )
+
 print(f"Deploying {UC_MODEL_NAME} v{version} to endpoint {ENDPOINT}")
-print("Review App:", getattr(deployment, "review_app_url", "see the Serving UI"))
+print("Review App:", REVIEW_APP or "not available on this path; test from the Serving UI or Playground")
 
 # COMMAND ----------
 
@@ -250,6 +293,8 @@ except Exception as e:
 # COMMAND ----------
 
 # agents.delete_deployment(model_name=UC_MODEL_NAME, model_version=version)
+# If the endpoint was created directly (fallback path), delete it with:
+# w.serving_endpoints.delete(ENDPOINT)
 
 # COMMAND ----------
 
